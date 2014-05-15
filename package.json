@@ -1,0 +1,27 @@
+{
+  "name": "unpm-ldap",
+  "version": "0.0.0",
+  "description": "ldap auth for unpm",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hayes/unpm-ldap.git"
+  },
+  "keywords": [
+    "unpm",
+    "ldap",
+    "auth"
+  ],
+  "author": "Michael Hayes",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hayes/unpm-ldap/issues"
+  },
+  "homepage": "https://github.com/hayes/unpm-ldap",
+  "dependencies": {
+    "ldapjs": "^0.7.1"
+  }
+}
