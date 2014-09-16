@@ -1,4 +1,5 @@
 var format = require('util').format
+  , queue = require('./queue')()
   , ldap = require('ldapjs')
   , fs = require('fs')
 
@@ -6,10 +7,14 @@ module.exports = setup
 
 function setup(unpm) {
   if(unpm.config.ldap.cacertfile) {
+    unpm.config.ldap.client = unpm.config.ldap.client || {}
     unpm.config.ldap.client.tlsOptions = {
         ca: [fs.readFileSync(unpm.config.ldap.cacertfile)]
     }
   }
+
+  unpm.config.ldap.client.url = unpm.config.ldap.client.url ||
+    unpm.config.ldap.uri
 
   var options = Object.create(unpm.config.ldap.client)
 
@@ -46,7 +51,7 @@ function setup(unpm) {
     })
 
     function try_auth(data, done) {
-      var user_client = ldap.createClient(base_options)
+      var user_client = ldap.createClient(options)
 
       client.bind(data.dn, password, got_user)
 
@@ -92,33 +97,6 @@ function setup(unpm) {
       }
 
       done(null, results[0])
-    }
-  }
-}
-
-var ldap_queue = []
-
-function queue(action) {
-  var args = [].slice.call(arguments, 1)
-  var callback = args.pop()
-
-  args.push(done)
-  ldap_queue.push(run)
-
-  if(ldap_queue.length === 1) {
-    run()
-  }
-
-  function run() {
-    action.apply(null, args)
-  }
-
-  function done() {
-    callback.apply(this, arguments)
-    ldap_queue.shift()
-
-    if(ldap_queue.length) {
-      ldap_queue[0]()
     }
   }
 }

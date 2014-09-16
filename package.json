@@ -4,7 +4,7 @@
   "description": "ldap auth for unpm",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test"
   },
   "repository": {
     "type": "git",
@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/hayes/unpm-ldap",
   "dependencies": {
-    "ldapjs": "^0.7.1"
+    "ldapjs": "^0.7.1",
+    "tape": "^3.0.0"
   }
 }
