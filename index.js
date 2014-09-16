@@ -37,16 +37,18 @@ function setup(unpm) {
   }
 
   function auth(username, password, done) {
-    search(username, try_auth)
-
-    function try_auth(err, data) {
+    queue(search, username, function(err, data) {
       if(err || !data) {
         return done(err)
       }
 
-      var user_client = ldap.createClient(unpm.config.ldap.client)
+      queue(try_auth, data, done)
+    })
 
-      user_client.bind(data.dn, password, got_user)
+    function try_auth(data, done) {
+      var user_client = ldap.createClient(base_options)
+
+      client.bind(data.dn, password, got_user)
 
       function got_user(err) {
         user_client.unbind(function() {
@@ -90,6 +92,33 @@ function setup(unpm) {
       }
 
       done(null, results[0])
+    }
+  }
+}
+
+var ldap_queue = []
+
+function queue(action) {
+  var args = [].slice.call(arguments, 1)
+  var callback = args.pop()
+
+  args.push(done)
+  ldap_queue.push(run)
+
+  if(ldap_queue.length === 1) {
+    run()
+  }
+
+  function run() {
+    action.apply(null, args)
+  }
+
+  function done() {
+    callback.apply(this, arguments)
+    ldap_queue.shift()
+
+    if(ldap_queue.length) {
+      ldap_queue[0]()
     }
   }
 }
