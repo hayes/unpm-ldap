@@ -44,16 +44,19 @@ function setup(unpm) {
         return done(err)
       }
 
-      ldap.createClient(unpm.config.ldap.client)
-        .bind(data.dn, password, got_user)
-    }
+      var user_client = ldap.createClient(unpm.config.ldap.client)
 
-    function got_user(err, data) {
-      if(err) {
-        return done(err)
+      user_client.bind(data.dn, password, got_user)
+
+      function got_user(err) {
+        user_client.unbind(function() {
+          if(err) {
+            return done(err)
+          }
+
+          done(null, {user: username})
+        })
       }
-
-      done(null, {user: username})
     }
   }
 
