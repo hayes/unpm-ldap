@@ -1,102 +1,57 @@
-var format = require('util').format
-  , queue = require('./queue')()
-  , ldap = require('ldapjs')
-  , fs = require('fs')
+var LdapAuth = require('ldapauth-fork')
+var util = require('util')
+var fs = require('fs')
 
 module.exports = setup
 
-function setup(unpm) {
-  if(unpm.config.ldap.cacertfile) {
-    unpm.config.ldap.client = unpm.config.ldap.client || {}
-    unpm.config.ldap.client.tlsOptions = {
-        ca: [fs.readFileSync(unpm.config.ldap.cacertfile)]
+function setup (options) {
+  return function (unpm) {
+    options = util._extend({}, options)
+
+    if (options.cacertfile) {
+      options.tlsOptions = util._extend({}, options.tlsOptions)
+      options.tlsOptions.ca = [fs.readFileSync(options.cacertfile)]
+      delete options.cacertfile
     }
-  }
 
-  unpm.config.ldap.client.url = unpm.config.ldap.client.url ||
-    unpm.config.ldap.uri
+    var ldap = new LdapAuth(options)
 
-  var options = Object.create(unpm.config.ldap.client)
+    return {
+      find: find,
+      create: create,
+      update: update,
+      auth: auth,
+      close: ldap.close.bind(ldap)
+    }
 
-  options.maxConnections = unpm.config.ldap.maxConnections
+    function find (username, done) {
+      done(null, {name: username})
+    }
 
-  var client = ldap.createClient(options)
+    function create (username, data, done) {
+      throw new Error('should never be called')
+    }
 
-  return {
-      find: find
-    , create: create
-    , update: update
-    , auth: auth
-  }
+    function update (old, data, done) {
+      find(old.name, done)
+    }
 
-  function find(username, done) {
-    done(null, {name: username})
-  }
+    function auth (username, password, done) {
+      ldap.authenticate(username, password, function (err, user) {
+        if (!err) return done(err, user)
+        // Invalid credentials / user not found are not errors but login failures
+        // These condition are taken from https://github.com/vesse/passport-ldapauth/blob/master/lib/passport-ldapauth/strategy.js#L160
+        if (
+          err.name === 'InvalidCredentialsError' ||
+          err.name === 'NoSuchObjectError' ||
+          (typeof err === 'string' && err.match(/no such user/i)) ||
+          (err.name === 'ConstraintViolationError')
+        ) {
+          return done(null, null)
+        }
 
-  function create(username, data, done) {
-    throw new Error('should never be called')
-  }
-
-  function update(old, data, done) {
-    find(old.name, done)
-  }
-
-  function auth(username, password, done) {
-    queue(search, username, function(err, data) {
-      if(err || !data) {
         return done(err)
-      }
-
-      queue(try_auth, data, done)
-    })
-
-    function try_auth(data, done) {
-      var user_client = ldap.createClient(options)
-
-      client.bind(data.dn, password, got_user)
-
-      function got_user(err) {
-        user_client.unbind(function() {
-          if(err) {
-            return done(err)
-          }
-
-          done(null, {user: username})
-        })
-      }
-    }
-  }
-
-  function search(username, done) {
-    var options = {
-        scope: 'sub'
-      , filter: format(unpm.config.ldap.filter, username)
-    }
-
-    var results = []
-
-    client.search(unpm.config.ldap.base, options, collect_results)
-
-    function collect_results(err, res) {
-      if(err) {
-        return done(err)
-      }
-
-      res.on('searchEntry', results.push.bind(results))
-      res.on('error', done)
-      res.on('end', end)
-    }
-
-    function end() {
-      if(results.length > 1) {
-        return done(new Error('too many results'))
-      }
-
-      if(!results.length) {
-        return done(null)
-      }
-
-      done(null, results[0])
+      })
     }
   }
 }

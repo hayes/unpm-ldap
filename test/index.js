@@ -1,38 +1,37 @@
-var queue = require('../queue')()
+var ldapServer = require('./ldap-server.js')()
+var ldapAuth = require('../index.js')
 var test = require('tape')
 
-test(function(t) {
-  var arg1 = {}
-  var arg2 = {}
-  var step = 0
+ldapServer.listen(8321)
 
-  t.plan(7)
+var client = ldapAuth({
+  url: 'ldap://localhost:8321',
+  // bindDn: 'cn=root',
+  // bindCredentials: 'secret',
+  searchBase: 'ou=example-org',
+  searchFilter: '(uid={{username}})'
+})()
 
-  queue(step1, arg1, arg2, step2)
-  queue(step3, step4)
-
-  function step1(argA, argB, done) {
-    t.equal(argA, arg1)
-    t.equal(argB, arg2)
-
-    setTimeout(function() {
-      t.equal(++step, 1)
-      done(arg2)
-    }, 10)
-  }
-
-  function step2(arg) {
-    t.equal(arg, arg2)
-    t.equal(++step, 2)
-  }
-
-  function step3(done) {
-    t.equal(++step, 3)
-    done()
-  }
-
-  function step4() {
-    t.equal(++step, 4)
+test('auth with valid credentials succeeds', function (t) {
+  t.plan(2)
+  client.auth('user1', 'hunter2', function (err, user) {
+    t.notOk(err, 'should not error')
+    t.equal(user.email, 'user1@example.org')
     t.end()
-  }
+  })
+})
+
+test('auth with invalid credentials fails', function (t) {
+  t.plan(2)
+  client.auth('user1', 'hunter2!', function (err, user) {
+    t.notOk(err, 'should not error')
+    t.notOk(user, 'user should not be found')
+    t.end()
+  })
+})
+
+test('cleanup', function (t) {
+  ldapServer.close()
+  client.close()
+  t.end()
 })
