@@ -1,6 +1,6 @@
 {
   "name": "unpm-ldap",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "ldap auth for unpm",
   "main": "index.js",
   "scripts": {
